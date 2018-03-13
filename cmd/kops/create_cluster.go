@@ -128,6 +128,8 @@ type CreateClusterOptions struct {
 	VSphereServer        string
 	VSphereDatacenter    string
 	VSphereResourcePool  string
+	VSphereCluster       string
+	VSphereFolder		 string
 	VSphereCoreDNSServer string
 	// Note: We need open-vm-tools to be installed for vSphere Cloud Provider to work
 	// We need VSphereDatastore to support Kubernetes vSphere Cloud Provider (v1.5.3)
@@ -341,7 +343,9 @@ func NewCmdCreateCluster(f *util.Factory, out io.Writer) *cobra.Command {
 		// vSphere flags
 		cmd.Flags().StringVar(&options.VSphereServer, "vsphere-server", options.VSphereServer, "vsphere-server is required for vSphere. Set vCenter URL Ex: 10.192.10.30 or myvcenter.io (without https://)")
 		cmd.Flags().StringVar(&options.VSphereDatacenter, "vsphere-datacenter", options.VSphereDatacenter, "vsphere-datacenter is required for vSphere. Set the name of the datacenter in which to deploy Kubernetes VMs.")
-		cmd.Flags().StringVar(&options.VSphereResourcePool, "vsphere-resource-pool", options.VSphereDatacenter, "vsphere-resource-pool is required for vSphere. Set a valid Cluster, Host or Resource Pool in which to deploy Kubernetes VMs.")
+		cmd.Flags().StringVar(&options.VSphereCluster, "vsphere-cluster", options.VSphereCluster, "vsphere-cluster is required for vSphere. Set a valid Cluster or Host in which to deploy Kubernetes VMs.")
+		cmd.Flags().StringVar(&options.VSphereResourcePool, "vsphere-resource-pool", options.VSphereResourcePool, "vsphere-resource-pool is optional for vSphere. Set a valid Resource Pool in which to deploy Kubernetes VMs. If omitted it will use the cluster default Resource Pool.")
+		cmd.Flags().StringVar(&options.VSphereFolder, "vsphere-folder", options.VSphereFolder, "vsphere-folder is optional for vSphere. Set the name of the folder to deploy Kubernetes VMs. If ommitted it will use the default VM folder.")
 		cmd.Flags().StringVar(&options.VSphereCoreDNSServer, "vsphere-coredns-server", options.VSphereCoreDNSServer, "vsphere-coredns-server is required for vSphere.")
 		cmd.Flags().StringVar(&options.VSphereDatastore, "vsphere-datastore", options.VSphereDatastore, "vsphere-datastore is required for vSphere.  Set a valid datastore in which to store dynamic provision volumes.")
 	}
@@ -791,10 +795,18 @@ func RunCreateCluster(f *util.Factory, out io.Writer, c *CreateClusterOptions) e
 			}
 			cluster.Spec.CloudConfig.VSphereDatacenter = fi.String(c.VSphereDatacenter)
 
-			if c.VSphereResourcePool == "" {
-				return fmt.Errorf("vsphere-resource-pool is required for vSphere. Set a valid Cluster, Host or Resource Pool in which to deploy Kubernetes VMs.")
+			if c.VSphereCluster == "" {
+				return fmt.Errorf("vsphere-cluster is required for vSphere. Set a valid Cluster or Host in which to deploy Kubernetes VMs.")
 			}
-			cluster.Spec.CloudConfig.VSphereResourcePool = fi.String(c.VSphereResourcePool)
+			cluster.Spec.CloudConfig.VSphereCluster = fi.String(c.VSphereCluster)
+
+			if c.VSphereResourcePool != "" {
+				cluster.Spec.CloudConfig.VSphereResourcePool = fi.String(c.VSphereResourcePool)
+			}
+
+			if c.VSphereFolder != "" {
+				cluster.Spec.CloudConfig.VSphereFolder = fi.String(c.VSphereFolder)
+			}
 
 			if c.VSphereCoreDNSServer == "" {
 				return fmt.Errorf("A coredns server is required for vSphere.")

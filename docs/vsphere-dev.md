@@ -149,7 +149,7 @@ Execute following command to launch cluster.
 
 ```bash
 kops create cluster kubernetes.skydns.local  --cloud=vsphere --zones=vmware-zone --dns-zone=skydns.local --networking=flannel
- --vsphere-server=10.160.97.44 --vsphere-datacenter=VSAN-DC --vsphere-resource-pool=VSAN-Cluster --vsphere-datastore=vsanDatastore --dns private --vsphere-coredns-server=http://10.192.217.24:2379 --image="kops_ubuntu_16_04.ova"
+ --vsphere-server=10.160.97.44 --vsphere-datacenter=VSAN-DC --vsphere-cluster=VSAN-Cluster --vsphere-datastore=vsanDatastore --dns private --vsphere-coredns-server=http://10.192.217.24:2379 --image="kops_ubuntu_16_04.ova"
 ```
 
 If kops doesn't exist in default path, locate it inside .build/dist/linux/amd64/kops for linux machine or .build/dist/darwin/amd64/kops for mac under kops source directory.
@@ -162,6 +162,8 @@ If kops doesn't exist in default path, locate it inside .build/dist/linux/amd64/
     * ```--dns-zone=skydns.local```
     * ```--networking=flannel```
     * ```--dns=private```
+4. If you are using namespaced folders you can add `--vsphere-folder` with the folder name where you would like the VM to be placed. (IE: "My Folder" or  "/MyCluster/vm/MyFolder/MySubFolder"). The default is to add the VM to the host/cluster default `vm` folder.
+5. If you are using a non default or nested resource pool, add `--vsphere-resource-pool with the resource pool name or path. (IE: "MyResourcePool" or /MyCluster/host/MyHost/Resources/MyResourcePool). The default behavior is to find the default resource pool attached to the host/cluster.
 
 ### Cleaning up environment
 Run following command to cleanup all set environment variables and regenerate all images and binaries without any of the vSphere specific steps.

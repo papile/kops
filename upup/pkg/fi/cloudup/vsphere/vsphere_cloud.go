@@ -49,11 +49,14 @@ type VSphereCloud struct {
 	Server        string
 	Datacenter    string
 	Cluster       string
+	ResourcePool  string
+	Folder        string
 	Username      string
 	Password      string
 	Client        *govmomi.Client
 	CoreDNSServer string
 	DNSZone       string
+	DataStore     string
 }
 
 const (
@@ -73,7 +76,11 @@ func (c *VSphereCloud) ProviderID() kops.CloudProviderID {
 func NewVSphereCloud(spec *kops.ClusterSpec) (*VSphereCloud, error) {
 	server := *spec.CloudConfig.VSphereServer
 	datacenter := *spec.CloudConfig.VSphereDatacenter
-	cluster := *spec.CloudConfig.VSphereResourcePool
+	cluster := *spec.CloudConfig.VSphereCluster
+	resourcePool := *spec.CloudConfig.VSphereResourcePool
+	folder := *spec.CloudConfig.VSphereFolder
+	dataStore := *spec.CloudConfig.VSphereDatastore
+
 	glog.V(2).Infof("Creating vSphere Cloud with server(%s), datacenter(%s), cluster(%s)", server, datacenter, cluster)
 
 	dns_server := *spec.CloudConfig.VSphereCoreDNSServer
@@ -99,7 +106,9 @@ func NewVSphereCloud(spec *kops.ClusterSpec) (*VSphereCloud, error) {
 	}
 	// Add retry functionality
 	c.RoundTripper = vim25.Retry(c.RoundTripper, vim25.TemporaryNetworkError(5))
-	vsphereCloud := &VSphereCloud{Server: server, Datacenter: datacenter, Cluster: cluster, Username: username, Password: password, Client: c, CoreDNSServer: dns_server, DNSZone: dns_zone}
+	vsphereCloud := &VSphereCloud{Server: server, Datacenter: datacenter, Cluster: cluster,
+		 ResourcePool: resourcePool, Folder: folder, Username: username, Password: password, 
+		 Client: c, CoreDNSServer: dns_server, DNSZone: dns_zone, DataStore: dataStore}
 	spec.CloudConfig.VSphereUsername = fi.String(username)
 	spec.CloudConfig.VSpherePassword = fi.String(password)
 	glog.V(2).Infof("Created vSphere Cloud successfully: %+v", vsphereCloud)
@@ -166,7 +175,10 @@ func (c *VSphereCloud) CreateLinkClonedVm(vmName, vmImage *string) (string, erro
 	}
 
 	glog.V(2).Infof("Template VM ref is %+v", templateVm)
-	datacenterFolders, err := dc.Folders(ctx)
+	
+
+	folder, err := f.FolderOrDefault(ctx, c.Folder)	
+	glog.V(4).Infof("VM folder is %+v", folder)
 	if err != nil {
 		return "", err
 	}
@@ -184,6 +196,11 @@ func (c *VSphereCloud) CreateLinkClonedVm(vmName, vmImage *string) (string, erro
 	}
 
 	resPool, err := clsComputeRes.ResourcePool(ctx)
+
+	if c.ResourcePool != "" {
+		resPool, err = f.ResourcePool(ctx, c.ResourcePool)
+	}
+
 	glog.V(4).Infof("Cluster resource pool is %+v", resPool)
 	if err != nil {
 		return "", err
@@ -210,7 +227,7 @@ func (c *VSphereCloud) CreateLinkClonedVm(vmName, vmImage *string) (string, erro
 	}
 
 	// Create a link cloned VM from the template VM's snapshot
-	clonedVmTask, err := templateVm.Clone(ctx, datacenterFolders.VmFolder, *vmName, *cloneSpec)
+	clonedVmTask, err := templateVm.Clone(ctx, folder, *vmName, *cloneSpec)
 	if err != nil {
 		return "", err
 	}
@@ -266,28 +283,13 @@ func (c *VSphereCloud) UploadAndAttachISO(vm *string, isoFile string) error {
 	if err != nil {
 		return err
 	}
-
-	var vmResult mo.VirtualMachine
-
-	pc := property.DefaultCollector(c.Client.Client)
-	err = pc.RetrieveOne(ctx, vmRef.Reference(), []string{"datastore"}, &vmResult)
-	if err != nil {
-		glog.Fatalf("Unable to retrieve VM summary for VM %s", *vm)
-	}
-	glog.V(4).Infof("vm property collector result :%+v\n", vmResult)
-
-	// We expect the VM to be on only 1 datastore
-	dsRef := vmResult.Datastore[0].Reference()
-	var dsResult mo.Datastore
-	err = pc.RetrieveOne(ctx, dsRef, []string{"summary"}, &dsResult)
-	if err != nil {
-		glog.Fatalf("Unable to retrieve datastore summary for datastore  %s", dsRef)
-	}
-	glog.V(4).Infof("datastore property collector result :%+v\n", dsResult)
-	dsObj, err := f.Datastore(ctx, dsResult.Summary.Name)
+	
+	dsObj, err := f.Datastore(ctx, c.DataStore)
 	if err != nil {
 		return err
 	}
+
+	glog.V(4).Infof("datastore finder result :%+v\n", dsObj)
 	p := soap.DefaultUpload
 	dstIsoFile := getCloudInitFileName(*vm)
 	glog.V(2).Infof("Uploading ISO file %s to datastore %+v, destination iso is %s\n", isoFile, dsObj, dstIsoFile)

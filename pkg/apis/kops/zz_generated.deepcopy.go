@@ -487,6 +487,24 @@ func (in *CloudConfiguration) DeepCopyInto(out *CloudConfiguration) {
 			**out = **in
 		}
 	}
+	if in.VSphereFolder != nil {
+		in, out := &in.VSphereFolder, &out.VSphereFolder
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(string)
+			**out = **in
+		}
+	}
+	if in.VSphereCluster != nil {
+		in, out := &in.VSphereCluster, &out.VSphereCluster
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(string)
+			**out = **in
+		}
+	}
 	if in.VSphereDatastore != nil {
 		in, out := &in.VSphereDatastore, &out.VSphereDatastore
 		if *in == nil {

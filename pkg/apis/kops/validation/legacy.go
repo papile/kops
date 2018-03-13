@@ -102,6 +102,8 @@ func ValidateCluster(c *kops.Cluster, strict bool) *field.Error {
 		}
 	case kops.CloudProviderAWS:
 	case kops.CloudProviderVSphere:
+		requiresNetworkCIDR = false
+		requiresSubnetCIDR = false
 	case kops.CloudProviderOpenstack:
 		requiresNetworkCIDR = false
 		requiresSubnetCIDR = false
